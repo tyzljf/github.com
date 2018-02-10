@@ -11,6 +11,7 @@ import (
 	"archive/zip"
 	"io"
 	"path/filepath"
+	"github.com/golang/standard-rest-api/utils/archive"
 )
 
 // fileLogWriter implements LoggerInterface.
@@ -99,7 +100,7 @@ func (f *FileLogWriter) startLogger() error {
 }
 
 func (f *FileLogWriter) createLogFile() (*os.File, error) {
-	perm, err := strconv.ParseInt("0660", 8, 64)
+	perm, err := strconv.ParseInt("0777", 8, 64)
 	if err != nil {
 		return nil, err
 	}
@@ -127,10 +128,16 @@ func (f *FileLogWriter) WriteMsg(level int, msg string, v ...interface{}) error 
 	f.Lock()
 	defer f.Unlock()
 
-	if f.needRotate() {
-		if err := f.doRotate(); err != nil {
-			fmt.Fprintf(os.Stderr, "doRotate failed, error:%s\n", err)
+
+		if f.needRotate() {
+			if err := f.doRotate(); err != nil {
+				fmt.Fprintf(os.Stderr, "doRotate failed, error:%s\n", err)
+			}
 		}
+
+
+	if f.fileWriter == nil {
+		err = f.startLogger()
 	}
 
 	_, err := f.fileWriter.Write([]byte(msg))
@@ -138,8 +145,22 @@ func (f *FileLogWriter) WriteMsg(level int, msg string, v ...interface{}) error 
 		fmt.Fprintf(os.Stderr, "write log messsage failed, error:%s\n", err)
 	}
 
+	f.doRotateTest()
+
 	return err
 }
+
+func (f *FileLogWriter) doRotateTest() error {
+	backLog := f.FilePath + "/" + f.FileName + ".1.zip"
+
+	err := f.Compress(f.fileWriter, backLog)
+	if err != nil {
+		return fmt.Errorf("compress %s\n", err)
+	}
+
+	return nil
+}
+
 
 //doRotate rotate the current log file
 func (f *FileLogWriter) doRotate() error {
@@ -167,7 +188,7 @@ func (f *FileLogWriter) doRotate() error {
 		fmt.Fprintf(os.Stderr, "fileWriter is bad descriptor !\n")
 	}
 
-	err := f.Compress(f.fileWriter, backLog)
+	err := archive.ArchiveZip(absPath, backLog)
 	if err != nil {
 		return fmt.Errorf("compress %s", err)
 	}
@@ -232,21 +253,29 @@ func (f *FileLogWriter) Compress(file *os.File, dest string) error {
 func (f *FileLogWriter) compress(file *os.File, prefix string, zw *zip.Writer) error {
 	info, err := file.Stat()
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "compress 1 error:%s", err)
 		return err
 	}
 
 	header, err := zip.FileInfoHeader(info)
 	header.Name = prefix + "/" + header.Name
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "compress 2 error:%s", err)
 		return  err
 	}
 
 	writer, err := zw.CreateHeader(header)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "compress 3 error:%s", err)
 		return err
 	}
 
+	if file == nil {
+		fmt.Fprintf(os.Stderr, "file *os.File is nill")
+	}
+
 	_, err = io.Copy(writer, file)
+	fmt.Fprintf(os.Stderr, "compress 4 error:%s", err)
 	return err
 }
 
