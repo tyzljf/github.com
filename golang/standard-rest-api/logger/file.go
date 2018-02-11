@@ -128,16 +128,10 @@ func (f *FileLogWriter) WriteMsg(level int, msg string, v ...interface{}) error 
 	f.Lock()
 	defer f.Unlock()
 
-
-		if f.needRotate() {
-			if err := f.doRotate(); err != nil {
-				fmt.Fprintf(os.Stderr, "doRotate failed, error:%s\n", err)
-			}
+	if f.needRotate() {
+		if err := f.doRotate(); err != nil {
+			fmt.Fprintf(os.Stderr, "doRotate failed, error:%s\n", err)
 		}
-
-
-	if f.fileWriter == nil {
-		err = f.startLogger()
 	}
 
 	_, err := f.fileWriter.Write([]byte(msg))
@@ -145,22 +139,8 @@ func (f *FileLogWriter) WriteMsg(level int, msg string, v ...interface{}) error 
 		fmt.Fprintf(os.Stderr, "write log messsage failed, error:%s\n", err)
 	}
 
-	f.doRotateTest()
-
 	return err
 }
-
-func (f *FileLogWriter) doRotateTest() error {
-	backLog := f.FilePath + "/" + f.FileName + ".1.zip"
-
-	err := f.Compress(f.fileWriter, backLog)
-	if err != nil {
-		return fmt.Errorf("compress %s\n", err)
-	}
-
-	return nil
-}
-
 
 //doRotate rotate the current log file
 func (f *FileLogWriter) doRotate() error {
@@ -184,10 +164,6 @@ func (f *FileLogWriter) doRotate() error {
 	}
 
 	backLog := absPath + ".1.zip"
-	if f.fileWriter == nil {
-		fmt.Fprintf(os.Stderr, "fileWriter is bad descriptor !\n")
-	}
-
 	err := archive.ArchiveZip(absPath, backLog)
 	if err != nil {
 		return fmt.Errorf("compress %s", err)
