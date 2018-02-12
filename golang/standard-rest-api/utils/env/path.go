@@ -1,9 +1,9 @@
 package env
 
 import (
-	"path/filepath"
-	"os"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -24,4 +24,8 @@ func GetCurrentDir() string {
 
 func GetLogPath() string {
 	return RootDir + PathSeparator + "logs"
+}
+
+func GetConfPath() string {
+	return RootDir + PathSeparator + "conf"
 }
